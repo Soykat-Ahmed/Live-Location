@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Location Tracker (Fixed Map)</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      color: #fff;
+    }
+
+    .container {
+      background-color: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      margin: 30px auto;
+      width: 90%;
+      max-width: 700px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 5px 0;
+      font-size: 1.1rem;
+    }
+
+    .map-wrapper {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      border-radius: 15px;
+      border: 2px solid rgba(255,255,255,0.2);
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .map-buttons {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 1000;
+    }
+
+    .map-button {
+      padding: 8px 16px;
+      background: #ffffffdd;
+      color: #333;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .map-button:hover {
+      background: #ffffff;
+      transform: scale(1.05);
+    }
+
+    .active {
+      background: #007bff;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌍 Live Location Tracker</h1>
+    <p><strong>Latitude:</strong> <span id="lat">--</span></p>
+    <p><strong>Longitude:</strong> <span id="lng">--</span></p>
+
+    <div class="map-wrapper">
+      <div class="map-buttons">
+        <button id="mapViewBtn" class="map-button active">🗺️ Map View</button>
+        <button id="satelliteViewBtn" class="map-button">🛰️ Satellite View</button>
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <script>
+    let map, marker, circle;
+
+    // Base layers
+    const mapView = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    });
+
+    const satelliteView = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri & contributors',
+        maxZoom: 19
+      }
+    );
+
+    function initMap(lat, lng) {
+      map = L.map('map', {
+        center: [lat, lng],
+        zoom: 15,
+        layers: [mapView]
+      });
+
+      marker = L.marker([lat, lng]).addTo(map)
+        .bindPopup('📍 You are here')
+        .openPopup();
+
+      circle = L.circle([lat, lng], {
+        color: '#3388ff',
+        fillColor: '#3388ff',
+        fillOpacity: 0.2,
+        radius: 30
+      }).addTo(map);
+
+      // Fix sizing issue
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 300);
+    }
+
+    function updateMap(lat, lng) {
+      marker.setLatLng([lat, lng]).bindPopup('📍 Location updated').openPopup();
+      circle.setLatLng([lat, lng]);
+      map.setView([lat, lng]);
+    }
+
+    function trackLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+          position => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            document.getElementById('lat').textContent = lat.toFixed(6);
+            document.getElementById('lng').textContent = lng.toFixed(6);
+
+            if (!map) {
+              initMap(lat, lng);
+            } else {
+              updateMap(lat, lng);
+            }
+          },
+          error => {
+            console.error("Geolocation error:", error);
+            alert("Unable to retrieve your location.");
+          },
+          {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 10000
+          }
+        );
+      } else {
+        alert("Geolocation is not supported by your browser.");
+      }
+    }
+
+    // View toggle logic
+    document.getElementById('mapViewBtn').addEventListener('click', () => {
+      map.removeLayer(satelliteView);
+      map.addLayer(mapView);
+      toggleActive('mapViewBtn');
+    });
+
+    document.getElementById('satelliteViewBtn').addEventListener('click', () => {
+      map.removeLayer(mapView);
+      map.addLayer(satelliteView);
+      toggleActive('satelliteViewBtn');
+    });
+
+    function toggleActive(activeId) {
+      document.querySelectorAll('.map-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.getElementById(activeId).classList.add('active');
+    }
+
+    trackLocation();
+  </script>
+</body>
+</html>
